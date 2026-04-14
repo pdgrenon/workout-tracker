@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>5×5 Workout Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0F0F0F; --surface:#1A1A1A; --surface-hover:#222; --border:#2A2A2A;
+  --accent:#E8C547; --accent-dim:rgba(232,197,71,0.15); --accent-muted:rgba(232,197,71,0.5);
+  --success:#4ADE80; --fail:#F87171;
+  --text:#F5F5F5; --text-muted:#888; --text-dim:#555;
+  --mono:'JetBrains Mono', monospace; --outfit:'Outfit', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--outfit);overflow-x:hidden;}
+button{font-family:inherit;cursor:pointer;}
+#app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+
+/* Header */
+.header{padding:24px 24px 0;display:flex;align-items:baseline;justify-content:space-between;}
+.header-title{font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-0.5px;}
+.header-sessions{font-size:12px;color:var(--text-dim);font-family:var(--mono);}
+
+/* Content */
+.content{padding:32px 24px 100px;flex:1;}
+
+/* Bottom Nav */
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:12px 0 20px;backdrop-filter:blur(12px);}
+.nav button{background:none;border:none;font-size:13px;font-family:var(--mono);letter-spacing:1px;padding:4px 16px;transition:color 0.2s;color:var(--text-dim);}
+.nav button.active{color:var(--accent);font-weight:700;}
+
+/* Dashboard */
+.section-label{font-size:12px;letter-spacing:4px;color:var(--text-muted);text-transform:uppercase;font-family:var(--mono);margin-bottom:12px;}
+.next-workout-title{font-size:36px;font-weight:800;margin-bottom:4px;}
+.next-workout-exercises{font-size:14px;color:var(--text-muted);font-family:var(--mono);}
+.weights-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;}
+.weights-hint{font-size:11px;color:var(--text-dim);font-family:var(--mono);}
+.weight-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:12px;margin-bottom:8px;border:1px solid var(--border);background:var(--surface);}
+.weight-row.next{background:var(--accent-dim);border-color:rgba(232,197,71,0.25);}
+.weight-row .name{font-size:14px;flex:1;}
+.weight-row.next .name{color:var(--accent);font-weight:600;}
+.weight-row:not(.next) .name{color:var(--text-muted);}
+.weight-controls{display:flex;align-items:center;gap:10px;}
+.weight-val{font-family:var(--mono);font-size:16px;font-weight:700;min-width:56px;text-align:center;}
+.weight-row.next .weight-val{color:var(--text);}
+.weight-row:not(.next) .weight-val{color:var(--text-muted);}
+.adj-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface-hover);color:var(--text-muted);font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono);transition:all 0.15s;}
+.start-btn{width:100%;padding:18px;border-radius:14px;border:none;background:var(--accent);color:var(--bg);font-size:18px;font-weight:700;letter-spacing:1px;box-shadow:0 0 40px var(--accent-dim);margin-top:8px;}
+
+/* Active Workout */
+.wo-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;}
+.wo-cancel{background:none;border:none;color:var(--text-muted);font-size:14px;font-family:var(--mono);}
+.wo-label{font-size:12px;letter-spacing:3px;color:var(--accent-muted);text-transform:uppercase;font-family:var(--mono);}
+.dots{display:flex;gap:8px;justify-content:center;margin-bottom:40px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all 0.3s;}
+.dot.active{background:var(--accent);}
+.dot.done{background:var(--success);}
+.exercise-name{font-size:32px;font-weight:700;text-align:center;margin-bottom:8px;}
+.exercise-weight{font-size:48px;font-weight:800;color:var(--accent);text-align:center;font-family:var(--mono);}
+.exercise-scheme{font-size:14px;color:var(--text-muted);text-align:center;margin-top:8px;font-family:var(--mono);}
+.sets-row{display:flex;gap:12px;justify-content:center;margin:40px 0 16px;}
+.set-btn{width:52px;height:52px;border-radius:12px;border:2px solid var(--border);background:var(--surface);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all 0.15s ease;color:var(--text-dim);}
+.set-btn.complete{border-color:var(--success);background:rgba(74,222,128,0.13);color:var(--success);}
+.set-btn.fail{border-color:var(--fail);background:rgba(248,113,113,0.13);color:var(--fail);}
+.sets-hint{text-align:center;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-bottom:40px;}
+.next-btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:700;letter-spacing:1px;transition:all 0.2s;}
+.next-btn.ready{background:var(--accent);color:var(--bg);cursor:pointer;}
+.next-btn.waiting{background:var(--border);color:var(--text-dim);cursor:not-allowed;}
+
+/* Timer Overlay */
+.timer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(8px);}
+.timer-box{text-align:center;padding:48px;border-radius:24px;background:var(--surface);border:1px solid var(--border);min-width:280px;}
+.timer-label{font-size:14px;letter-spacing:3px;color:var(--text-muted);margin-bottom:16px;text-transform:uppercase;font-family:var(--mono);}
+.timer-display{font-size:72px;font-weight:700;font-family:var(--mono);transition:color 0.3s;}
+.timer-actions{display:flex;gap:12px;margin-top:32px;justify-content:center;}
+.timer-pause{padding:10px 24px;border-radius:10px;border:1px solid var(--border);background:var(--surface-hover);color:var(--text);font-size:14px;font-family:var(--mono);}
+.timer-skip{padding:10px 24px;border-radius:10px;border:none;background:var(--accent);color:var(--bg);font-size:14px;font-weight:600;font-family:var(--mono);}
+
+/* History */
+.history-card{padding:18px;border-radius:14px;background:var(--surface);border:1px solid var(--border);margin-bottom:12px;}
+.history-top{display:flex;justify-content:space-between;margin-bottom:12px;}
+.history-type{font-size:16px;font-weight:700;}
+.history-date{font-size:13px;color:var(--text-muted);font-family:var(--mono);}
+.history-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.history-exname{font-size:13px;color:var(--text-muted);}
+.history-weight{font-size:14px;font-weight:600;font-family:var(--mono);}
+.history-sets{font-size:12px;font-family:var(--mono);}
+.empty-msg{text-align:center;padding:60px 20px;color:var(--text-dim);font-family:var(--mono);}
+
+/* Charts */
+.chart-block{margin-bottom:32px;}
+.chart-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;}
+.chart-name{font-size:16px;font-weight:600;}
+.chart-current{font-size:14px;color:var(--text-muted);font-family:var(--mono);}
+.chart-wrap{background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);}
+
+/* Data tab */
+.data-section{margin-bottom:40px;}
+.data-section-title{font-size:12px;letter-spacing:4px;color:var(--text-muted);text-transform:uppercase;font-family:var(--mono);margin-bottom:16px;}
+.del-card{padding:14px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--border);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.del-card-info{flex:1;}
+.del-card-type{font-size:14px;font-weight:600;margin-bottom:2px;}
+.del-card-date{font-size:12px;color:var(--text-muted);font-family:var(--mono);}
+.del-card-detail{font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:2px;}
+.del-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface-hover);color:var(--fail);font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:12px;transition:all 0.15s;}
+.del-btn:hover{background:rgba(248,113,113,0.15);border-color:var(--fail);}
+
+/* Confirm dialog */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(8px);}
+.confirm-box{padding:32px;border-radius:20px;background:var(--surface);border:1px solid var(--border);max-width:340px;width:90%;text-align:center;}
+.confirm-title{font-size:18px;font-weight:700;margin-bottom:8px;}
+.confirm-msg{font-size:13px;color:var(--text-muted);margin-bottom:24px;line-height:1.5;}
+.confirm-actions{display:flex;gap:12px;justify-content:center;}
+.confirm-cancel{padding:10px 24px;border-radius:10px;border:1px solid var(--border);background:var(--surface-hover);color:var(--text);font-size:14px;font-family:var(--mono);}
+.confirm-delete{padding:10px 24px;border-radius:10px;border:none;background:var(--fail);color:#fff;font-size:14px;font-weight:600;font-family:var(--mono);}
+
+/* Add workout form */
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12px;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;font-family:var(--mono);margin-bottom:8px;}
+.form-input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;transition:border-color 0.2s;}
+.form-input:focus{border-color:var(--accent);}
+.form-select{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:var(--mono);outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;}
+.form-select:focus{border-color:var(--accent);}
+.form-row{display:flex;gap:12px;}
+.form-row .form-group{flex:1;}
+.weight-input-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;}
+.weight-input-row .exname{font-size:13px;color:var(--text-muted);flex:1;}
+.weight-input-row input{width:70px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:var(--mono);text-align:center;outline:none;}
+.weight-input-row input:focus{border-color:var(--accent);}
+.weight-input-row .sets-label{font-size:11px;color:var(--text-dim);font-family:var(--mono);min-width:44px;text-align:right;}
+.add-btn{width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent);color:var(--bg);font-size:15px;font-weight:700;letter-spacing:1px;font-family:var(--outfit);margin-top:8px;}
+.add-btn:disabled{background:var(--border);color:var(--text-dim);cursor:not-allowed;}
+.success-toast{padding:12px 16px;border-radius:10px;background:rgba(74,222,128,0.15);border:1px solid var(--success);color:var(--success);font-size:13px;font-family:var(--mono);text-align:center;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-title">5×5 Workout Tracker</div>
+    <div class="header-sessions" id="sessionCount"></div>
+  </div>
+  <div class="content" id="content"></div>
+  <div class="nav" id="nav">
+    <button data-view="dashboard" class="active">Home</button>
+    <button data-view="history">Log</button>
+    <button data-view="progress">Charts</button>
+    <button data-view="data">Data</button>
+  </div>
+</div>
+
+<!-- Timer template (hidden) -->
+<div class="timer-overlay" id="timerOverlay" style="display:none;">
+  <div class="timer-box">
+    <div class="timer-label">Rest Timer</div>
+    <div class="timer-display" id="timerDisplay">1:30</div>
+    <div class="timer-actions">
+      <button class="timer-pause" id="timerPause">Pause</button>
+      <button class="timer-skip" id="timerSkip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm dialog (hidden) -->
+<div class="confirm-overlay" id="confirmOverlay" style="display:none;">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">Delete Workout?</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-actions">
+      <button class="confirm-cancel" id="confirmCancel">Cancel</button>
+      <button class="confirm-delete" id="confirmDelete">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Data ───────────────────────────────────────────────────────────
+var EXERCISES = {
+  squat:    { name:"Squat",          increment:5, sets:5, reps:5, startWeight:45 },
+  bench:    { name:"Bench Press",    increment:5, sets:5, reps:5, startWeight:45 },
+  row:      { name:"Barbell Row",    increment:5, sets:5, reps:5, startWeight:65 },
+  ohp:      { name:"Overhead Press", increment:5, sets:5, reps:5, startWeight:45 },
+  deadlift: { name:"Deadlift",       increment:5, sets:1, reps:5, startWeight:135 },
+};
+var WORKOUT_A = ["squat","bench","row"];
+var WORKOUT_B = ["squat","ohp","deadlift"];
+var KEY = "5x5-workout-data";
+var liftColors = {squat:"#E8C547",bench:"#60A5FA",row:"#F472B6",ohp:"#34D399",deadlift:"#FB923C"};
+
+function defaultData() {
+  return {
+    currentWeights:{squat:45,bench:45,row:65,ohp:45,deadlift:135},
+    failCounts:{squat:0,bench:0,row:0,ohp:0,deadlift:0},
+    lastWorkoutType:null, workoutHistory:[]
+  };
+}
+function load() { try { var r=localStorage.getItem(KEY); return r?JSON.parse(r):defaultData(); } catch(e){ return defaultData(); } }
+function save(d) { data=d; try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){} render(); }
+
+var data = load();
+var currentView = "dashboard";
+
+// Workout state
+var woType = null;
+var woExercises = [];
+var woIndex = 0;
+var woSets = []; // array of arrays
+
+// Timer state
+var timerInterval = null;
+var timerSeconds = 90;
+var timerRunning = false;
+
+// ─── Formatting ─────────────────────────────────────────────────────
+function fmtDate(iso) { return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+function fmtShort(iso) { return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric"}); }
+
+// ─── Navigation ─────────────────────────────────────────────────────
+var navEl = document.getElementById("nav");
+navEl.addEventListener("click", function(e) {
+  if (e.target.dataset.view) {
+    currentView = e.target.dataset.view;
+    render();
+  }
+});
+
+// ─── Timer ──────────────────────────────────────────────────────────
+var timerOverlay = document.getElementById("timerOverlay");
+var timerDisplay = document.getElementById("timerDisplay");
+var timerPauseBtn = document.getElementById("timerPause");
+var timerSkipBtn = document.getElementById("timerSkip");
+
+function showTimer() {
+  timerSeconds = 90;
+  timerRunning = true;
+  timerOverlay.style.display = "flex";
+  updateTimerDisplay();
+  timerPauseBtn.textContent = "Pause";
+  clearInterval(timerInterval);
+  timerInterval = setInterval(function() {
+    if (!timerRunning) return;
+    timerSeconds--;
+    updateTimerDisplay();
+    if (timerSeconds <= 0) hideTimer();
+  }, 1000);
+}
+function hideTimer() {
+  timerOverlay.style.display = "none";
+  clearInterval(timerInterval);
+}
+function updateTimerDisplay() {
+  var m = Math.floor(timerSeconds/60);
+  var s = timerSeconds % 60;
+  timerDisplay.textContent = m + ":" + (s<10?"0":"") + s;
+  timerDisplay.style.color = timerSeconds <= 10 ? "var(--accent)" : "var(--text)";
+}
+timerPauseBtn.addEventListener("click", function() {
+  timerRunning = !timerRunning;
+  timerPauseBtn.textContent = timerRunning ? "Pause" : "Resume";
+});
+timerSkipBtn.addEventListener("click", hideTimer);
+
+// ─── Render ─────────────────────────────────────────────────────────
+var content = document.getElementById("content");
+var sessionCountEl = document.getElementById("sessionCount");
+var chartInstances = [];
+
+function render() {
+  // Destroy old charts
+  chartInstances.forEach(function(c){c.destroy();});
+  chartInstances = [];
+
+  // Session count
+  sessionCountEl.textContent = data.workoutHistory.length > 0 ? data.workoutHistory.length + " sessions" : "";
+
+  // Nav highlight
+  var navBtns = navEl.querySelectorAll("button");
+  navBtns.forEach(function(b){ b.className = b.dataset.view === currentView ? "active" : ""; });
+
+  // Show/hide nav
+  navEl.style.display = currentView === "workout" ? "none" : "flex";
+
+  if (currentView === "dashboard") renderDashboard();
+  else if (currentView === "workout") renderWorkout();
+  else if (currentView === "history") renderHistory();
+  else if (currentView === "progress") renderProgress();
+  else if (currentView === "data") renderData();
+}
+
+// ─── Dashboard ──────────────────────────────────────────────────────
+function renderDashboard() {
+  var nextType = data.lastWorkoutType === "A" ? "B" : "A";
+  var nextEx = nextType === "A" ? WORKOUT_A : WORKOUT_B;
+
+  var html = '<div style="margin-bottom:48px">';
+  html += '<div class="section-label">Next Session</div>';
+  html += '<div style="display:flex;align-items:center;gap:12px">';
+  html += '<div class="next-workout-title">Workout ' + nextType + '</div>';
+  html += '<button id="swapBtn" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface-hover);color:var(--text-muted);font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;margin-top:2px" title="Switch to Workout ' + (nextType==="A"?"B":"A") + '">\u21C4</button>';
+  html += '</div>';
+  html += '<div class="next-workout-exercises">' + nextEx.map(function(k){return EXERCISES[k].name;}).join(" · ") + '</div>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:40px">';
+  html += '<div class="weights-header"><div class="section-label" style="margin-bottom:0">Working Weights</div><div class="weights-hint">\u00b15 lb</div></div>';
+
+  var keys = Object.keys(EXERCISES);
+  keys.forEach(function(key) {
+    var ex = EXERCISES[key];
+    var isNext = nextEx.indexOf(key) !== -1;
+    html += '<div class="weight-row' + (isNext?" next":"") + '">';
+    html += '<span class="name">' + ex.name + '</span>';
+    html += '<div class="weight-controls">';
+    html += '<button class="adj-btn" data-key="'+key+'" data-delta="-5">\u2212</button>';
+    html += '<span class="weight-val">' + data.currentWeights[key] + '</span>';
+    html += '<button class="adj-btn" data-key="'+key+'" data-delta="5">+</button>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<button class="start-btn" id="startBtn">Start Workout ' + nextType + '</button>';
+  content.innerHTML = html;
+
+  // Event: adjust weights
+  content.querySelectorAll(".adj-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var k = btn.dataset.key;
+      var d = parseInt(btn.dataset.delta);
+      var nw = Math.max(0, data.currentWeights[k] + d);
+      data.currentWeights[k] = nw;
+      save(data);
+    });
+  });
+
+  // Event: swap workout type
+  document.getElementById("swapBtn").addEventListener("click", function() {
+    // Flip lastWorkoutType so the dashboard recalculates the opposite
+    if (data.lastWorkoutType === "A") data.lastWorkoutType = "B";
+    else if (data.lastWorkoutType === "B") data.lastWorkoutType = "A";
+    else data.lastWorkoutType = "A"; // default: if null, next was B, swap to A means set last to A
+    save(data);
+  });
+
+  // Event: start workout
+  document.getElementById("startBtn").addEventListener("click", function() {
+    woType = nextType;
+    woExercises = nextType === "A" ? WORKOUT_A : WORKOUT_B;
+    woIndex = 0;
+    woSets = woExercises.map(function(k){ return new Array(EXERCISES[k].sets).fill(null); });
+    currentView = "workout";
+    render();
+  });
+}
+
+// ─── Active Workout ─────────────────────────────────────────────────
+function renderWorkout() {
+  var key = woExercises[woIndex];
+  var ex = EXERCISES[key];
+  var weight = data.currentWeights[key];
+  var sets = woSets[woIndex];
+  var allMarked = sets.every(function(s){return s!==null;});
+  var isLast = woIndex === woExercises.length - 1;
+
+  var html = '<div class="wo-top">';
+  html += '<button class="wo-cancel" id="woCancel">\u2190 Cancel</button>';
+  html += '<div class="wo-label">Workout ' + woType + '</div>';
+  html += '</div>';
+
+  html += '<div class="dots">';
+  woExercises.forEach(function(_,i) {
+    var cls = "dot";
+    if (i === woIndex) cls += " active";
+    else if (i < woIndex) cls += " done";
+    html += '<div class="'+cls+'"></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="exercise-name">' + ex.name + '</div>';
+  html += '<div class="exercise-weight">' + weight + ' lb</div>';
+  html += '<div class="exercise-scheme">' + ex.sets + ' \u00d7 ' + ex.reps + ' reps</div>';
+
+  html += '<div class="sets-row">';
+  sets.forEach(function(s,i) {
+    var cls = "set-btn";
+    var label = "";
+    if (s === true) { cls += " complete"; label = "\u2713"; }
+    else if (s === false) { cls += " fail"; label = "\u2717"; }
+    html += '<button class="'+cls+'" data-set="'+i+'">'+label+'</button>';
+  });
+  html += '</div>';
+  html += '<div class="sets-hint">Tap: complete \u2192 fail \u2192 reset</div>';
+
+  html += '<button class="next-btn ' + (allMarked?"ready":"waiting") + '" id="nextBtn"' + (allMarked?'':' disabled') + '>';
+  html += isLast ? "Finish Workout" : "Next Exercise \u2192";
+  html += '</button>';
+
+  content.innerHTML = html;
+
+  // Events
+  document.getElementById("woCancel").addEventListener("click", function() {
+    currentView = "dashboard"; render();
+  });
+
+  content.querySelectorAll(".set-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var idx = parseInt(btn.dataset.set);
+      var cur = woSets[woIndex][idx];
+      if (cur === null) {
+        woSets[woIndex][idx] = true;
+        if (idx < ex.sets - 1) showTimer();
+      }
+      else if (cur === true) woSets[woIndex][idx] = false;
+      else woSets[woIndex][idx] = null;
+      renderWorkout();
+    });
+  });
+
+  var nextBtn = document.getElementById("nextBtn");
+  if (allMarked) {
+    nextBtn.addEventListener("click", function() {
+      if (isLast) {
+        finishWorkout();
+      } else {
+        woIndex++;
+        renderWorkout();
+      }
+    });
+  }
+}
+
+function finishWorkout() {
+  var results = {};
+  woExercises.forEach(function(k, i) {
+    var sets = woSets[i];
+    results[k] = {
+      completed: sets.filter(function(s){return s===true;}).length,
+      failed: sets.filter(function(s){return s===false;}).length,
+      total: EXERCISES[k].sets,
+      weight: data.currentWeights[k]
+    };
+  });
+
+  data.workoutHistory.push({ date: new Date().toISOString(), type: woType, results: results });
+  data.lastWorkoutType = woType;
+
+  // Progressive overload
+  Object.keys(results).forEach(function(key) {
+    var r = results[key];
+    if (r.completed === r.total) {
+      data.currentWeights[key] += EXERCISES[key].increment;
+      data.failCounts[key] = 0;
+    } else {
+      data.failCounts[key] = (data.failCounts[key]||0) + 1;
+      if (data.failCounts[key] >= 3) {
+        data.currentWeights[key] = Math.max(EXERCISES[key].startWeight, Math.round(data.currentWeights[key]*0.9/5)*5);
+        data.failCounts[key] = 0;
+      }
+    }
+  });
+
+  currentView = "dashboard";
+  save(data);
+}
+
+// ─── History ────────────────────────────────────────────────────────
+function renderHistory() {
+  if (data.workoutHistory.length === 0) {
+    content.innerHTML = '<div class="empty-msg">No workouts logged yet. Hit the iron!</div>';
+    return;
+  }
+  var html = '';
+  var history = data.workoutHistory.slice().reverse();
+  history.forEach(function(w) {
+    html += '<div class="history-card">';
+    html += '<div class="history-top"><span class="history-type">Workout '+w.type+'</span><span class="history-date">'+fmtDate(w.date)+'</span></div>';
+    Object.keys(w.results).forEach(function(key) {
+      var r = w.results[key];
+      var color = r.completed === r.total ? "var(--success)" : "var(--fail)";
+      html += '<div class="history-row">';
+      html += '<span class="history-exname">'+EXERCISES[key].name+'</span>';
+      html += '<div style="display:flex;align-items:center;gap:10px">';
+      html += '<span class="history-weight">'+r.weight+' lb</span>';
+      html += '<span class="history-sets" style="color:'+color+'">'+r.completed+'/'+r.total+'</span>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  });
+  content.innerHTML = html;
+}
+
+// ─── Progress ───────────────────────────────────────────────────────
+function renderProgress() {
+  if (data.workoutHistory.length < 2) {
+    content.innerHTML = '<div class="empty-msg">Log at least 2 workouts to see progress charts.</div>';
+    return;
+  }
+  var html = '';
+  Object.keys(EXERCISES).forEach(function(key) {
+    var ex = EXERCISES[key];
+    var points = data.workoutHistory.filter(function(w){return w.results[key];}).map(function(w) {
+      return { date: fmtShort(w.date), weight: w.results[key].weight };
+    });
+    if (points.length < 2) return;
+    html += '<div class="chart-block">';
+    html += '<div class="chart-header">';
+    html += '<span class="chart-name" style="color:'+liftColors[key]+'">'+ex.name+'</span>';
+    html += '<span class="chart-current">'+points[points.length-1].weight+' lb</span>';
+    html += '</div>';
+    html += '<div class="chart-wrap"><canvas id="chart-'+key+'" height="160"></canvas></div>';
+    html += '</div>';
+  });
+  content.innerHTML = html;
+
+  // Create charts
+  Object.keys(EXERCISES).forEach(function(key) {
+    var canvas = document.getElementById("chart-"+key);
+    if (!canvas) return;
+    var points = data.workoutHistory.filter(function(w){return w.results[key];}).map(function(w) {
+      return { date: fmtShort(w.date), weight: w.results[key].weight };
+    });
+    var chart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: points.map(function(p){return p.date;}),
+        datasets: [{
+          data: points.map(function(p){return p.weight;}),
+          borderColor: liftColors[key],
+          backgroundColor: liftColors[key] + "33",
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: "#0F0F0F",
+          pointBorderColor: liftColors[key],
+          pointBorderWidth: 2,
+          tension: 0.3,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#555", font: { size: 11, family: "'JetBrains Mono'" } }, grid: { color: "#2A2A2A" }, border: { display: false } },
+          y: { ticks: { color: "#555", font: { size: 11, family: "'JetBrains Mono'" } }, grid: { color: "#2A2A2A" }, border: { display: false } }
+        }
+      }
+    });
+    chartInstances.push(chart);
+  });
+}
+
+// ─── Confirm Dialog ─────────────────────────────────────────────────
+var confirmOverlay = document.getElementById("confirmOverlay");
+var confirmTitle = document.getElementById("confirmTitle");
+var confirmMsg = document.getElementById("confirmMsg");
+var confirmCancelBtn = document.getElementById("confirmCancel");
+var confirmDeleteBtn = document.getElementById("confirmDelete");
+var pendingDeleteIndex = -1;
+
+function showConfirm(idx) {
+  var w = data.workoutHistory[idx];
+  var exNames = Object.keys(w.results).map(function(k){return EXERCISES[k].name;}).join(", ");
+  pendingDeleteIndex = idx;
+  confirmTitle.textContent = "Delete Workout?";
+  confirmMsg.innerHTML = "Workout " + w.type + " on " + fmtDate(w.date) + "<br><span style='font-size:12px;color:var(--text-dim)'>" + exNames + "</span><br><br>This cannot be undone.";
+  confirmOverlay.style.display = "flex";
+}
+function hideConfirm() {
+  confirmOverlay.style.display = "none";
+  pendingDeleteIndex = -1;
+}
+confirmCancelBtn.addEventListener("click", hideConfirm);
+confirmDeleteBtn.addEventListener("click", function() {
+  if (pendingDeleteIndex >= 0 && pendingDeleteIndex < data.workoutHistory.length) {
+    data.workoutHistory.splice(pendingDeleteIndex, 1);
+    // Fix lastWorkoutType
+    if (data.workoutHistory.length > 0) {
+      data.lastWorkoutType = data.workoutHistory[data.workoutHistory.length - 1].type;
+    } else {
+      data.lastWorkoutType = null;
+    }
+    hideConfirm();
+    save(data);
+  }
+});
+
+// ─── Data Tab ───────────────────────────────────────────────────────
+var addToastTimeout = null;
+
+function renderData() {
+  var html = '';
+
+  // Toast placeholder
+  html += '<div id="addToast"></div>';
+
+  // ── Add Historical Workout ──
+  html += '<div class="data-section">';
+  html += '<div class="data-section-title">Add Historical Workout</div>';
+
+  html += '<div class="form-row">';
+  html += '<div class="form-group"><label class="form-label">Type</label>';
+  html += '<select class="form-select" id="addType"><option value="A">Workout A — Squat, Bench, Row</option><option value="B">Workout B — Squat, OHP, Deadlift</option></select></div>';
+  html += '</div>';
+
+  html += '<div class="form-group"><label class="form-label">Date</label>';
+  html += '<input type="date" class="form-input" id="addDate" value="' + new Date().toISOString().split("T")[0] + '" /></div>';
+
+  html += '<div id="addWeightFields"></div>';
+
+  html += '<div class="form-group" style="margin-top:4px"><label class="form-label">Set Results</label>';
+  html += '<div style="display:flex;gap:12px">';
+  html += '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer"><input type="radio" name="addResult" value="all" checked style="accent-color:var(--accent)"> All sets completed</label>';
+  html += '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);cursor:pointer"><input type="radio" name="addResult" value="some"> Some failed</label>';
+  html += '</div></div>';
+
+  html += '<div id="addFailFields" style="display:none"></div>';
+
+  html += '<button class="add-btn" id="addBtn">Add Workout</button>';
+  html += '</div>';
+
+  // ── Delete Workouts ──
+  html += '<div class="data-section">';
+  html += '<div class="data-section-title">Delete Workouts</div>';
+
+  if (data.workoutHistory.length === 0) {
+    html += '<div class="empty-msg" style="padding:30px 20px">No workouts to delete.</div>';
+  } else {
+    data.workoutHistory.slice().reverse().forEach(function(w, ri) {
+      var realIdx = data.workoutHistory.length - 1 - ri;
+      var exSummary = Object.keys(w.results).map(function(k) {
+        var r = w.results[k];
+        return EXERCISES[k].name + " " + r.weight + "lb";
+      }).join(" · ");
+      html += '<div class="del-card">';
+      html += '<div class="del-card-info">';
+      html += '<div class="del-card-type">Workout ' + w.type + '</div>';
+      html += '<div class="del-card-date">' + fmtDate(w.date) + '</div>';
+      html += '<div class="del-card-detail">' + exSummary + '</div>';
+      html += '</div>';
+      html += '<button class="del-btn" data-delidx="' + realIdx + '">\u2717</button>';
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+
+  content.innerHTML = html;
+
+  // ── Wire up type/result change to rebuild weight fields ──
+  var addTypeEl = document.getElementById("addType");
+  function rebuildWeightFields() {
+    var type = addTypeEl.value;
+    var exKeys = type === "A" ? WORKOUT_A : WORKOUT_B;
+    var wfHtml = '';
+    exKeys.forEach(function(k) {
+      var ex = EXERCISES[k];
+      wfHtml += '<div class="weight-input-row">';
+      wfHtml += '<span class="exname">' + ex.name + '</span>';
+      wfHtml += '<input type="number" data-exkey="' + k + '" class="add-weight-input" value="' + data.currentWeights[k] + '" min="0" step="5" />';
+      wfHtml += '<span class="sets-label">' + ex.sets + '\u00d7' + ex.reps + '</span>';
+      wfHtml += '</div>';
+    });
+    document.getElementById("addWeightFields").innerHTML = wfHtml;
+    rebuildFailFields();
+  }
+
+  function rebuildFailFields() {
+    var resultVal = document.querySelector('input[name="addResult"]:checked').value;
+    var ffEl = document.getElementById("addFailFields");
+    if (resultVal === "all") {
+      ffEl.style.display = "none";
+      ffEl.innerHTML = "";
+      return;
+    }
+    ffEl.style.display = "block";
+    var type = addTypeEl.value;
+    var exKeys = type === "A" ? WORKOUT_A : WORKOUT_B;
+    var ffHtml = '<label class="form-label" style="margin-top:8px">Failed Sets Per Exercise</label>';
+    exKeys.forEach(function(k) {
+      var ex = EXERCISES[k];
+      ffHtml += '<div class="weight-input-row">';
+      ffHtml += '<span class="exname">' + ex.name + '</span>';
+      ffHtml += '<input type="number" data-failkey="' + k + '" class="add-fail-input" value="0" min="0" max="' + ex.sets + '" step="1" />';
+      ffHtml += '<span class="sets-label">of ' + ex.sets + '</span>';
+      ffHtml += '</div>';
+    });
+    ffEl.innerHTML = ffHtml;
+  }
+
+  addTypeEl.addEventListener("change", rebuildWeightFields);
+  document.querySelectorAll('input[name="addResult"]').forEach(function(r) {
+    r.addEventListener("change", rebuildFailFields);
+  });
+  rebuildWeightFields();
+
+  // ── Wire up Add button ──
+  document.getElementById("addBtn").addEventListener("click", function() {
+    var type = addTypeEl.value;
+    var dateVal = document.getElementById("addDate").value;
+    if (!dateVal) return;
+    var exKeys = type === "A" ? WORKOUT_A : WORKOUT_B;
+    var resultMode = document.querySelector('input[name="addResult"]:checked').value;
+
+    var results = {};
+    exKeys.forEach(function(k) {
+      var ex = EXERCISES[k];
+      var weightInput = document.querySelector('.add-weight-input[data-exkey="'+k+'"]');
+      var w = parseInt(weightInput.value) || 0;
+      var failedSets = 0;
+      if (resultMode === "some") {
+        var failInput = document.querySelector('.add-fail-input[data-failkey="'+k+'"]');
+        if (failInput) failedSets = Math.min(parseInt(failInput.value) || 0, ex.sets);
+      }
+      results[k] = {
+        completed: ex.sets - failedSets,
+        failed: failedSets,
+        total: ex.sets,
+        weight: w
+      };
+    });
+
+    var workout = {
+      date: new Date(dateVal + "T12:00:00").toISOString(),
+      type: type,
+      results: results
+    };
+
+    data.workoutHistory.push(workout);
+    // Sort by date
+    data.workoutHistory.sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
+    // Update lastWorkoutType to the most recent
+    data.lastWorkoutType = data.workoutHistory[data.workoutHistory.length - 1].type;
+
+    save(data);
+
+    // Show toast after re-render
+    setTimeout(function() {
+      var toast = document.getElementById("addToast");
+      if (toast) {
+        toast.innerHTML = '<div class="success-toast">Workout ' + type + ' added for ' + fmtDate(workout.date) + '</div>';
+        clearTimeout(addToastTimeout);
+        addToastTimeout = setTimeout(function() { if (toast) toast.innerHTML = ''; }, 3000);
+      }
+    }, 50);
+  });
+
+  // ── Wire up Delete buttons ──
+  content.querySelectorAll(".del-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      showConfirm(parseInt(btn.dataset.delidx));
+    });
+  });
+}
+
+// ─── Init ───────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
