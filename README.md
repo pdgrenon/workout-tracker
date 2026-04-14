@@ -1,4 +1,4 @@
-# 5×5 Barbell Tracker
+# 5×5 Barbell Workout Tracker
 
 A minimal, offline-capable workout tracker for 5×5 barbell training with automatic progressive overload. Built as a single HTML file with zero build tools — just open it in a browser.
 
